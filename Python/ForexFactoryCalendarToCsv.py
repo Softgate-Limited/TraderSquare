@@ -27,7 +27,7 @@ impact_table = {'Holiday': 0, 'Low': 1, 'Medium': 3, 'High': 5}
 # XML をパースしながら CSV 形式で標準出力に書き出し
 
 import xml.etree.ElementTree as etree
-from datetime import date, time, datetime
+from datetime import time, datetime
 
 root = etree.fromstring(xml_content)
 

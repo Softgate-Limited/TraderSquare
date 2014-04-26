@@ -1,15 +1,23 @@
+# -*- coding: UTF-8 -*-
+
 # Python 2.x, 3.x の違いを吸収 (print と urllib2)
-
 from __future__ import print_function
+try:
+    import urllib.request as urllib2
+except:
+    import urllib2
 
+# ただし 2.x では文字列処理でエラーになるので動作しない
+
+import argparse
 import datetime
 import re
-import argparse
+import sys
 
 parser = argparse.ArgumentParser(description='Convert DailyFX Japan calendar to CSV')
 parser.add_argument('-v', '--verbose', dest='verbose', default=False, action='store_true', help='keep original event titles')
 parser.add_argument('-d', '--duplicate', dest='duplicate', default=False, action='store_true', help='do not trim duplicate events')
-
+parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
 args = parser.parse_args()
 
 
@@ -40,11 +48,6 @@ def simplify_text(text):
     return text
 
 
-try:
-    import urllib.request as urllib2
-except:
-    import urllib2
-
 # 一応 User-Agent は Chrome にして、XML を取得
 
 user_agent = 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.63 Safari/537.36'
@@ -52,7 +55,7 @@ headers = {'User-Agent': user_agent}
 
 request = urllib2.Request(compose_calendar_url(datetime.datetime.now()), None, headers)
 response = urllib2.urlopen(request)
-content = response.read().decode()
+content = response.read().decode('UTF-8')
 
 # HTML をパースしながら CSV 形式で標準出力に書き出し
 
@@ -115,11 +118,11 @@ if not args.duplicate:
                 if curr[:3] == next[:3]:
                     j += 1
                 else:
-                    print(output[j - 1])
+                    print(output[j - 1], file=args.outfile)
                     i = j
                     break
 
-        print(output[-1])
+        print(output[-1], file=args.outfile)
 else:
     for output_line in output:
-        print(output_line)
+        print(output_line, file=args.outfile)

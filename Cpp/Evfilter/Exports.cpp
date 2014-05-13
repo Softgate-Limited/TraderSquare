@@ -1,12 +1,16 @@
 #include <Windows.h>
 #include <time.h>
 #include <comutil.h>
+#include <string>
+#include <vector>
 #include "Utils.h"
 
 #pragma comment(lib,"comsuppw.lib")
 #pragma comment(lib,"wininet.lib")
 
 extern HINSTANCE hDllInstance;
+
+using namespace std;
 
 namespace
 {
@@ -17,7 +21,7 @@ namespace
   const int ReadBufferSize = 1024 * 8;
   char ReadBuffer[ReadBufferSize];
 
-  bool FetchAndReadDataFile(const std::wstring &url, const std::wstring csvPath)
+  bool FetchDataFile(const std::wstring &url, const std::wstring csvPath)
   {
     MyInternetHandle hInternet(InternetOpen(MyAgentName, INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0));
     if (hInternet == NULL)
@@ -42,6 +46,80 @@ namespace
 
     return true;
   }
+
+  struct EconomicEvent
+  {
+    time_t datetime;
+    int impact;
+    wchar_t country[3];
+    wchar_t currency[4];
+
+    EconomicEvent(time_t dt, int imp, const char *cnt, const char *cur)
+    {
+      datetime = dt;
+      impact = imp;
+
+      _bstr_t cntBstr(cnt);
+      _bstr_t curBstr(cur);
+
+      memcpy(country, (wchar_t *)cntBstr, 3 * sizeof(wchar_t));
+      memcpy(currency, (wchar_t *)curBstr, 4 * sizeof(wchar_t));
+    }
+  };
+
+  typedef vector<EconomicEvent> EconomicEvents;
+
+  EconomicEvents economicEvents;
+
+  bool ReadDataFile(const std::wstring csvPath)
+  {
+    // 実際の CSV ファイルは UTF-8 だが、指標名は読み捨てるので、ASCII のつもりで読み込んで問題ない。
+    FILE *file;    
+    errno_t err = _wfopen_s(&file, csvPath.c_str(), L"r");
+    bool returnValue = (err == 0);
+    if (returnValue)
+    {
+      try
+      {
+        economicEvents.clear();
+
+        char lineBuff[256];
+        while (fgets(lineBuff, sizeof(lineBuff), file) != NULL)
+        {
+          if (strlen(lineBuff) > 28)
+          {
+            string year(lineBuff, 4);
+            string month(lineBuff + 5, 2);
+            string day(lineBuff + 8, 2);
+            string hour(lineBuff + 11, 2);
+            string minute(lineBuff + 14, 2);
+            //string second(lineBuff + 17, 2);
+            string country(lineBuff + 17, 2);
+            string currency(lineBuff + 20, 3);
+            string impact(lineBuff + 24, 1);
+
+            tm tm;
+            tm.tm_year = atoi(year.c_str()) - 1900;
+            tm.tm_mon = atoi(month.c_str()) - 1;
+            tm.tm_mday = atoi(day.c_str());
+            tm.tm_hour = atoi(hour.c_str());
+            tm.tm_min = atoi(minute.c_str());
+            tm.tm_sec = 0;
+            time_t datetime = _mkgmtime(&tm) - 9 * 60 * 60;
+            int imp = atoi(impact.c_str());
+
+            economicEvents.push_back(EconomicEvent(datetime, imp, country.c_str(), currency.c_str()));
+          }
+        }
+      }
+      catch (...)
+      {
+        returnValue = false;
+      }
+      fclose(file);
+    }
+    return returnValue;
+  }
 }
 
 int __stdcall EventReloadW(const wchar_t *url)
@@ -60,7 +138,7 @@ int __stdcall EventReloadW(const wchar_t *url)
       {
         MutexReleaser mutexReleaser(hMutex, waitResult == WAIT_ABANDONED);
         
-        return FetchAndReadDataFile(std::wstring(url), csvPath);
+        return FetchDataFile(std::wstring(url), csvPath) && ReadDataFile(csvPath);
       }
     }
   }
@@ -73,12 +151,49 @@ int __stdcall EventReloadA(const char *url)
   return EventReloadW(bStr);
 }
 
-int __stdcall EventInEffectW(__time64_t datetime, const wchar_t *currency, int minutesBefore, int minutesAfter)
+int __stdcall EventInEffectW(__time64_t datetime, const wchar_t *currency, int impact, int minutesBefore, int minutesAfter)
 {
-  return 0;
+  bool anySymbol = true;
+  wchar_t symbolBuf[256];
+  int retval = 0;
+
+  try
+  {
+    if (currency != 0 && currency[0] != L'\0')
+    {
+      wcscpy_s(symbolBuf, 256, currency);
+      _wcsupr_s(symbolBuf, 256);
+      anySymbol = false;
+    }
+
+    // vector をサーチ
+
+    for (EconomicEvents::const_iterator it = economicEvents.begin(); it != economicEvents.end(); ++it)
+    {
+      if (it->impact >= impact)
+      {
+        if ((minutesBefore <= 0 || it->datetime - minutesBefore * 60 <= datetime) && (minutesAfter <= 0 || it->datetime + minutesAfter * 60 >= datetime))
+        {
+          if (anySymbol || wcsstr(symbolBuf, it->currency) != 0)
+          {
+            retval = 1;
+            break;
+          }
+        }
+      }
+
+      if (it->datetime - minutesBefore > datetime)
+        break;
+    }
+  }
+  catch (...)
+  {
+  }
+  return retval;
 }
 
-int __stdcall EventInEffectA(__time32_t datetime, const char *currency, int minutesBefore, int minutesAfter)
+int __stdcall EventInEffectA(__time32_t datetime, const char *currency, int impact, int minutesBefore, int minutesAfter)
 {
-  return 0;
+  _bstr_t bStr(currency);
+  return EventInEffectW((__time64_t)datetime, bStr, impact, minutesBefore, minutesAfter);
 }

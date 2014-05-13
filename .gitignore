@@ -2,3 +2,4 @@ Cpp/Evfilter/Debug/
 Cpp/Evfilter/Release/
 *.opensdf
 *.sdf
+Cpp/Evfilter/ipch/

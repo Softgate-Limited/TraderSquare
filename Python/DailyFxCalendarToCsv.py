@@ -86,9 +86,14 @@ for daily_block in daily_blocks:
         for e in matches:
             if not e.group(4) in country_table:
                 continue
-            impact = e.group(7) or '0'
-            correct_hour = hour = int(e.group(2) or '00')
-            minute = int(e.group(3) or '00')
+            if not e.group(2):
+                impact = '0'
+                correct_hour = hour = 0
+                minute = 0
+            else:
+                impact = e.group(7) or '0'
+                correct_hour = hour = int(e.group(2) or '00')
+                minute = int(e.group(3) or '00')
             event_date = curr_datetime
             title = simplify_text(e.group(5))
             if hour >= 24:
@@ -121,6 +126,7 @@ if not args.duplicate:
                     print(output[j - 1], file=args.outfile)
                     i = j
                     break
+            i = j
 
         print(output[-1], file=args.outfile)
 else:

@@ -118,7 +118,7 @@ namespace
       }
       fclose(file);
     }
-    return returnValue;
+    return returnValue && economicEvents.size() > 0;
   }
 }
 

@@ -172,7 +172,7 @@ int __stdcall EventInEffectW(__time64_t datetime, const wchar_t *currency, int i
     {
       if (it->impact >= impact)
       {
-        if ((minutesBefore <= 0 || it->datetime - minutesBefore * 60 <= datetime) && (minutesAfter <= 0 || it->datetime + minutesAfter * 60 >= datetime))
+        if ((minutesBefore < 0 || it->datetime - minutesBefore * 60 <= datetime) && (minutesAfter < 0 || it->datetime + minutesAfter * 60 >= datetime))
         {
           if (anySymbol || wcsstr(symbolBuf, it->currency) != 0)
           {

@@ -35,16 +35,19 @@ namespace
     if (hWriteFile == INVALID_HANDLE_VALUE)
       return false;
 
-    DWORD bytesRead, bytesWritten;
+    DWORD bytesRead, bytesWritten, bytesReadTotal = 0;
     while (InternetReadFile(hUrl, ReadBuffer, ReadBufferSize, &bytesRead))
     {
+      bytesReadTotal += bytesRead;
       if (bytesRead == 0)
         break;
 
       WriteFile(hWriteFile, ReadBuffer, bytesRead, &bytesWritten, NULL);
+      if (bytesRead != bytesWritten)
+        return false;
     }
 
-    return true;
+    return bytesReadTotal > 0;
   }
 
   struct EconomicEvent

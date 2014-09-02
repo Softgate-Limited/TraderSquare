@@ -3,3 +3,5 @@ Cpp/Evfilter/Release/
 *.opensdf
 *.sdf
 Cpp/Evfilter/ipch/
+Cpp/Economic/Release/
+Cpp/Economic/Debug/

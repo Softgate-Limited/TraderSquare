@@ -1,0 +1,9 @@
+LIBRARY Economic
+
+EXPORTS
+    EconomicReload
+    EconomicGetIndex
+	EconomicGetDateTime
+	EconomicGetImpact
+	EconomicGetCurrency
+	EconomicGetTitle
